@@ -4,7 +4,7 @@ blueprint:
     Erstellt einen Sensor, der die Anzahl der offenen Rollos zählt (Device Class = shutter).
     Rollos können über ein Label von der Zählung ausgeschlossen werden.
   domain: template
-    source_url: https://raw.githubusercontent.com/TheRealSimon42/home_assistant_templates/main/blueprint_templates/Open_Blinds.yaml
+  source_url: https://raw.githubusercontent.com/TheRealSimon42/home_assistant_templates/main/blueprint_templates/Open_Blinds.yaml
 
   input:
     sensor_name:
