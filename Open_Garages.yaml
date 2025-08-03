@@ -1,0 +1,35 @@
+blueprint:
+  name: Zähler für offene Garagen (mit Label-Ausschluss)
+  description: >-
+    Erstellt einen Sensor, der die Anzahl der offenen Garagen zählt (Device Class = garage).
+    Garagen können über ein Label von der Zählung ausgeschlossen werden.
+  domain: template
+    source_url: https://github.com/TheRealSimon42/Dynamic_Auto_Bubble_Dashboard/tree/main/blueprints/Offene_Garagen.yaml
+
+  input:
+    sensor_name:
+      name: Name des Sensors
+      description: Gib den Namen für den neuen Zähler-Sensor ein.
+      selector:
+        text:
+      default: "Offene Garagen"
+
+    exclusion_label:
+      name: Ausschluss-Label
+      description: Wähle das Label aus, um Entitäten von der Zählung auszuschließen (z.B. 'no-dboard').
+      selector:
+        label:
+
+# --- HIER WIRD DIE TEMPLATE-ENTITÄT ANHAND DEINER LOGIK DEFINIERT ---
+sensor:
+  - name: !input sensor_name
+    unique_id: "{{ slugify(input('sensor_name')) }}_garage_counter"
+    icon: mdi:garage-open-variant
+    state: >
+      {% set exclude = label_entities(input('exclusion_label')) %}
+      {{ states.cover
+        | selectattr('attributes.device_class', 'eq', 'garage')
+        | selectattr('state','eq','open')
+        | rejectattr('entity_id','in', exclude)
+        | list
+        | count }}

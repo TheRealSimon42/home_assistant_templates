@@ -1,0 +1,34 @@
+blueprint:
+  name: Zähler für entriegelte Schlösser (mit Label-Ausschluss)
+  description: >-
+    Erstellt einen Sensor, der die Anzahl der entriegelten Schlösser zählt.
+    Rollos können über ein Label von der Zählung ausgeschlossen werden.
+  domain: template
+    source_url: https://github.com/TheRealSimon42/Dynamic_Auto_Bubble_Dashboard/tree/main/blueprints/Entriegelte_Schlosser.yaml
+
+  input:
+    sensor_name:
+      name: Name des Sensors
+      description: Gib den Namen für den neuen Zähler-Sensor ein.
+      selector:
+        text:
+      default: "Entriegelte Schlösser"
+
+    exclusion_label:
+      name: Ausschluss-Label
+      description: Wähle das Label aus, um Entitäten von der Zählung auszuschließen (z.B. 'no-dboard').
+      selector:
+        label:
+
+# --- HIER WIRD DIE TEMPLATE-ENTITÄT ANHAND DEINER LOGIK DEFINIERT ---
+sensor:
+  - name: !input sensor_name
+    unique_id: "{{ slugify(input('sensor_name')) }}_lock_counter"
+    icon: mdi:window-shutter-open
+    state: >
+      {% set exclude = label_entities(input('exclusion_label')) %}
+      {{ states.lock
+        | selectattr('state','eq','unlocked')
+        | rejectattr('entity_id','in', exclude)
+        | list
+        | count }}
