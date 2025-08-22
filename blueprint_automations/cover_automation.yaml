@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version Sections)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version Sections Cleanup)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -9,7 +9,7 @@ blueprint:
   input:
     # --- SEKTION 1: ZUORDNUNG ---
     assignment_section:
-      name: 1. Zuordnung
+      name: Zuordnung
       description: 'Ordne hier jedem Rollladen einen Fenstersensor zu. Die Reihenfolge in beiden Listen muss identisch sein!'
       icon: mdi:vector-link
       input:
@@ -34,7 +34,7 @@ blueprint:
 
     # --- SEKTION 2: MORGENS ÖFFNEN ---
     morning_section:
-      name: 2. Morgens Öffnen
+      name: Morgens Öffnen
       description: Einstellungen für das automatische Öffnen der Rollläden am Morgen.
       icon: mdi:weather-sunset-up
       collapsed: true
@@ -69,7 +69,7 @@ blueprint:
 
     # --- SEKTION 3: FENSTER-INTERAKTION ---
     window_interaction_section:
-      name: 3. Fenster-Interaktion
+      name: Fenster-Interaktion
       description: Definiert, wie Rollläden auf geöffnete oder gekippte Fenster reagieren.
       icon: mdi:window-open-variant
       collapsed: true
@@ -98,7 +98,7 @@ blueprint:
 
     # --- SEKTION 4: NACHTMODUS ---
     night_mode_section:
-      name: 4. Nachtmodus
+      name: Nachtmodus
       description: Einstellungen für das Schließen der Rollläden bei Nacht.
       icon: mdi:weather-night
       collapsed: true
@@ -112,7 +112,7 @@ blueprint:
 
     # --- SEKTION 5: BENACHRICHTIGUNGEN ---
     notification_section:
-      name: 5. Benachrichtigungen
+      name: Benachrichtigungen
       description: Einstellungen für Benachrichtigungen bei zu lange offenen Fenstern.
       icon: mdi:bell
       collapsed: true
