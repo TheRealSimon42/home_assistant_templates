@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version Working)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version Notify Fix)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten, Anwesenheitsmodi und Sturmwarnungen.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -214,6 +214,14 @@ variables:
   force_storm_action: !input force_storm_action
   panzer_mode: !input panzer_mode
   weather_entity: !input weather_entity
+  device_name_map: >
+    {% set ns = namespace(device_names=[]) %}
+    {% for device_id in inputs.notification_device %}
+      {% set device_name = device_attr(device_id, "name") %}
+      {% set sanitized_name = "mobile_app_" + device_name | slugify  %}
+      {% set ns.device_names = ns.device_names + [sanitized_name] %}
+    {% endfor %}
+    {{ ns.device_names }}
   
 trigger:
   - platform: time
@@ -339,24 +347,26 @@ action:
             id: window_open_long
           - "{{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}"
         sequence:
-          - service: notify.notify
-            target:
-              device_id: !input notification_device
-            data:
-              message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout }} Minuten offen."
-              title: "Fenster offen"
+          - repeat:
+              for_each: "{{ device_name_map }}"
+              sequence:
+                - service: "notify.{{ repeat.item }}"
+                  data:
+                    message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout }} Minuten offen."
+                    title: "Fenster offen"
               
       - conditions:
           - condition: trigger
             id: window_tilted_long
           - "{{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}"
         sequence:
-          - service: notify.notify
-            target:
-              device_id: !input notification_device
-            data:
-              message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout_tilted }} Minuten gekippt."
-              title: "Fenster gekippt"
+          - repeat:
+              for_each: "{{ device_name_map }}"
+              sequence:
+                - service: "notify.{{ repeat.item }}"
+                  data:
+                    message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout_tilted }} Minuten gekippt."
+                    title: "Fenster gekippt"
 
       - conditions:
           - condition: trigger
@@ -369,7 +379,7 @@ action:
               
           - service: scene.create
             data:
-              scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
+              scene_id: "{{ 'reclose_' ~ (shutter | slugify) }}"
               snapshot_entities:
                 - "{{ shutter }}"
 
