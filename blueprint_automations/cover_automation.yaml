@@ -398,7 +398,8 @@ action:
               minutes: "{{ reclose_timeout_seconds }}"
             continue_on_timeout: true
             
-          - if: "{{ wait.completed }}"
+          - if: 
+              - "{{ wait.completed }}"
             then:
               - service: scene.turn_on
                 target:
