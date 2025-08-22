@@ -131,9 +131,10 @@ blueprint:
           name: Benachrichtigungs-Gerät
           description: Das Gerät oder der Dienst, der die Benachrichtigung erhalten soll (z.B. `notify.mobile_app_dein_handy`).
           selector:
-            target:
-              entity:
-                domain: notify
+            device:
+              multiple: true
+              filter:
+                integration: mobile_app
 
         sleep_mode_boolean:
           name: Schlafmodus Helfer (optional)
@@ -243,10 +244,10 @@ action:
               triggered_index: "{{ sensors_list.index(triggered_sensor) }}"
               shutter: "{{ shutters_list[triggered_index] }}"
               
-          - scene.create:
-              scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
-              snapshot_entities:
-                - "{{ shutter }}"
+          - service: scene.create
+            scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
+            snapshot_entities:
+              - "{{ shutter }}"
 
           - choose:
               - conditions:
