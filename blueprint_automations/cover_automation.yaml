@@ -151,6 +151,7 @@ variables:
   reclose_timeout_seconds: !input reclose_timeout
   shutters_list: !input shutters
   sensors_list: !input window_sensors
+  tilted_position: !input tilted_position
   
 trigger:
   - platform: time
@@ -254,7 +255,7 @@ action:
           - choose:
               - conditions:
                   - "{{ trigger.to_state.state == 'tilted' }}"
-                  - "{{ state_attr(shutter, 'current_position') | int(101) < inputs.tilted_position }}"
+                  - "{{ state_attr(shutter, 'current_position') | int(101) < tilted_position }}"
                 sequence:
                   - service: cover.set_cover_position
                     data:
