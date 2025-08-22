@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version Notify Fix)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version Notify Fix2)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten, Anwesenheitsmodi und Sturmwarnungen.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -214,9 +214,10 @@ variables:
   force_storm_action: !input force_storm_action
   panzer_mode: !input panzer_mode
   weather_entity: !input weather_entity
+  notification_device: !input notification_device
   device_name_map: >
     {% set ns = namespace(device_names=[]) %}
-    {% for device_id in inputs.notification_device %}
+    {% for device_id in notification_device %}
       {% set device_name = device_attr(device_id, "name") %}
       {% set sanitized_name = "mobile_app_" + device_name | slugify  %}
       {% set ns.device_names = ns.device_names + [sanitized_name] %}
