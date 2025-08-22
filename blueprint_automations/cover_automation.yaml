@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version mit MorPos)
+  name: Intelligente Rollladensteuerung (UI-Version)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -62,6 +62,18 @@ blueprint:
           domain:
             - binary_sensor
             - sensor
+            
+    tilted_position:
+      name: Zielposition für gekippte Fenster
+      description: 'Die Position (in %), auf die ein Rollladen fährt, wenn das Fenster gekippt wird. Die Aktion wird nur ausgeführt, wenn der Rollladen geschlossener ist als diese Position.'
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: slider
+          unit_of_measurement: "%"
         
     reclose_timeout:
       name: Zeitfenster für automatisches Schließen
@@ -123,6 +135,12 @@ trigger:
     
   - platform: state
     entity_id: !input window_sensors
+    to:
+      - 'on'
+      - 'open'
+      - 'tilted'
+    for:
+      seconds: 2
     id: window_change
     
   - platform: state
@@ -204,16 +222,17 @@ action:
               
           - scene.create:
               scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
-              entities:
-                "{{ shutter }}": "{{ states(shutter) }}"
+              snapshot_entities:
+                - "{{ shutter }}"
 
           - choose:
               - conditions:
                   - "{{ trigger.to_state.state == 'tilted' }}"
+                  - "{{ state_attr(shutter, 'current_position') | int(101) < inputs.tilted_position }}"
                 sequence:
                   - service: cover.set_cover_position
                     data:
-                      position: 20
+                      position: !input tilted_position
                     target:
                       entity_id: "{{ shutter }}"
 
@@ -238,4 +257,4 @@ action:
             then:
               - service: scene.turn_on
                 target:
-                  entity_id: "{{ 'reclose_' ~ shutter | slugify }}"
+                  entity_id: "{{ 'scene.reclose_' ~ shutter | slugify }}"
