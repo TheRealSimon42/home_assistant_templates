@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version NFF)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -246,9 +246,10 @@ action:
               shutter: "{{ shutters_list[triggered_index] }}"
               
           - service: scene.create
-            scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
-            snapshot_entities:
-              - "{{ shutter }}"
+            data:
+              scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
+              snapshot_entities:
+                - "{{ shutter }}"
 
           - choose:
               - conditions:
