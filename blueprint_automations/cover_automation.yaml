@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version UoM)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version Working)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten, Anwesenheitsmodi und Sturmwarnungen.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -403,7 +403,7 @@ action:
             then:
               - service: scene.turn_on
                 target:
-                  entity_id: "{{ 'reclose_' ~ shutter | slugify }}"
+                  entity_id: "scene.{{ 'reclose_' ~ (shutter | slugify) }}"
             else:
               - if: "{{ force_close }}"
                 then:
