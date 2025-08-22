@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version TriggerFix)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -23,7 +23,7 @@ blueprint:
               device_class: shutter
 
         window_sensors:
-          name: Zugehörige Fenstersensoren
+          name: Zugehörige Fensterssensoren
           description: 'Wähle die passenden Fenstersensoren in der exakt gleichen Reihenfolge wie die Rollläden oben aus. Der erste Sensor hier wird dem ersten Rollladen oben zugeordnet, usw.'
           selector:
             entity:
@@ -270,11 +270,8 @@ action:
                       entity_id: "{{ shutter }}"
 
           - wait_for_trigger:
-              - platform: state
-                entity_id: "{{ triggered_sensor }}"
-                to: 
-                  - 'off'
-                  - 'closed'
+              - platform: template
+                value_template: "{{ states(triggered_sensor) in ['off', 'closed'] }}"
             timeout:
               minutes: "{{ reclose_timeout_seconds }}"
             continue_on_timeout: true
