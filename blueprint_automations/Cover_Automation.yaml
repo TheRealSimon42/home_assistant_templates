@@ -1,0 +1,237 @@
+blueprint:
+  name: Intelligente Rollladensteuerung mit Fensterüberwachung
+  description: >
+    Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
+    
+    Funktionen:
+    - Fährt ausgewählte Rollläden morgens zu einer bestimmten Zeit hoch.
+    - Reagiert auf das Kippen ('tilted') oder Öffnen ('open') von zugeordneten Fenstern.
+    - Schließt einen Rollladen automatisch wieder, wenn das Fenster innerhalb einer bestimmten Zeit geschlossen wird.
+    - Sendet eine Benachrichtigung, wenn ein Fenster zu lange offen steht.
+    - Fährt die Rollläden nachts herunter, berücksichtigt dabei aber offene/gekippte Fenster.
+  domain: automation
+  source_url: https://community.home-assistant.io/t/beispiel-link-zum-thread/12345
+  
+  input:
+    # --- MORGENS HOCHFAHREN ---
+    morning_time:
+      name: Uhrzeit für morgendliches Hochfahren
+      description: Ein `input_datetime`-Helfer, der die Uhrzeit für das Hochfahren der Rollläden am Morgen festlegt.
+      selector:
+        entity:
+          domain: input_datetime
+          
+    morning_shutters:
+      name: Rollläden für morgens
+      description: Die Rollläden, die morgens hochgefahren werden sollen. Mehrfachauswahl ist möglich.
+      selector:
+        target:
+          entity:
+            domain: cover
+            device_class: shutter
+
+    # --- FENSTER-INTERAKTION (YAML-KONFIGURATION) ---
+    shutter_sensor_pairs:
+      name: (YAML) Rollladen-Fenstersensor-Paare
+      description: >
+        Dies ist der wichtigste Teil. Klicke auf die 3 Punkte und wähle "Als YAML bearbeiten".
+        Gib hier eine Liste von Rollläden und den zugehörigen Fenstersensoren an.
+        Beispiel:
+        - shutter: cover.rollladen_schlafzimmer
+          sensor: binary_sensor.fenster_schlafzimmer
+        - shutter: cover.rollladen_wohnzimmer
+          sensor: sensor.fenster_wohnzimmer_contact 
+      selector:
+        object: {}
+        
+    reclose_timeout:
+      name: Zeitfenster für automatisches Schließen
+      description: Wenn ein Fenster innerhalb dieser Zeit (in Minuten) wieder geschlossen wird, fährt der Rollladen in seine Ausgangsposition zurück.
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: Minuten
+
+    # --- NACHTS SCHLIESSEN ---
+    night_mode_boolean:
+      name: "Nachtmodus" Helfer
+      description: Ein `input_boolean`-Helfer. Wenn dieser auf 'on' geschaltet wird, werden die Rollläden für die Nacht geschlossen.
+      selector:
+        entity:
+          domain: input_boolean
+          
+    # --- BENACHRICHTIGUNG ---
+    notification_timeout:
+      name: Benachrichtigung nach X Minuten
+      description: Sendet eine Nachricht, wenn ein Fenster länger als diese Zeit offen ist.
+      default: 45
+      selector:
+        number:
+          min: 5
+          max: 240
+          unit_of_measurement: Minuten
+          
+    notification_device:
+      name: Benachrichtigungs-Gerät
+      description: Das Gerät oder der Dienst, der die Benachrichtigung erhalten soll (z.B. `notify.mobile_app_dein_handy`).
+      selector:
+        target:
+          entity:
+            domain: notify
+
+    sleep_mode_boolean:
+      name: "Schlafmodus" Helfer (optional)
+      description: Optional. Wenn dieser `input_boolean` 'on' ist, werden keine Benachrichtigungen über offene Fenster gesendet.
+      default: {}
+      selector:
+        entity:
+          domain: input_boolean
+          
+# Modus "parallel", damit die Automatisierung für mehrere Fenster gleichzeitig laufen kann,
+# besonders wichtig für die "wait_for_trigger" Funktion beim Schließen.
+mode: parallel
+max: 15 # Erlaube bis zu 15 gleichzeitige Ausführungen (z.B. für 15 Fenster)
+
+# Variablen, die die Konfiguration auslesen und für die Automatisierung aufbereiten
+variables:
+  # Extrahiert alle Fenstersensoren aus der YAML-Konfiguration für die Trigger
+  window_sensors: !input shutter_sensor_pairs
+  reclose_timeout_seconds: !input reclose_timeout
+  
+# Wir brauchen mehrere Trigger für die verschiedenen Funktionen
+trigger:
+  # 1. Trigger: Morgens zur festgelegten Zeit
+  - platform: time
+    at: !input morning_time
+    id: morning_open
+    
+  # 2. Trigger: Wenn einer der Fenstersensoren seinen Zustand ändert
+  - platform: state
+    entity_id: >
+      {{ window_sensors | map(attribute='sensor') | list }}
+    id: window_change
+    
+  # 3. Trigger: Wenn ein Fenster zu lange offen ist
+  - platform: state
+    entity_id: >
+      {{ window_sensors | map(attribute='sensor') | list }}
+    to:
+      - 'on'
+      - 'open'
+      - 'tilted'
+    for:
+      minutes: !input notification_timeout
+    id: window_open_long
+
+  # 4. Trigger: Wenn der Nachtmodus aktiviert wird
+  - platform: state
+    entity_id: !input night_mode_boolean
+    to: 'on'
+    id: night_close
+
+action:
+  - choose:
+      # --- AKTION FÜR MORGENDLICHES ÖFFNEN ---
+      - conditions:
+          - condition: trigger
+            id: morning_open
+        sequence:
+          - service: cover.open_cover
+            target: !input morning_shutters
+            
+      # --- AKTION FÜR NACHTSCHLIESSUNG ---
+      - conditions:
+          - condition: trigger
+            id: night_close
+        sequence:
+          - repeat:
+              for_each: !input shutter_sensor_pairs
+              sequence:
+                - variables:
+                    shutter: "{{ repeat.item.shutter }}"
+                    sensor: "{{ repeat.item.sensor }}"
+                - choose:
+                    # Wenn Fenster offen/gekippt, nur auf 15% schließen
+                    - conditions:
+                        - "{{ states(sensor) in ['on', 'open', 'tilted'] }}"
+                      sequence:
+                        - service: cover.set_cover_position
+                          target:
+                            entity_id: "{{ shutter }}"
+                          data:
+                            position: 15
+                  # Ansonsten komplett schließen
+                  default:
+                    - service: cover.close_cover
+                      target:
+                        entity_id: "{{ shutter }}"
+                        
+      # --- AKTION FÜR FENSTER-BENACHRICHTIGUNG ---
+      - conditions:
+          - condition: trigger
+            id: window_open_long
+          # Nur ausführen, wenn der Schlafmodus-Helfer nicht existiert oder 'off' ist
+          - >
+            {{ iif(is_state('input_boolean.dummy', 'off'), true, 
+               not is_state(sleep_mode_boolean, 'on')) if sleep_mode_boolean else true }}
+        sequence:
+          - service: notify.notify
+            target: !input notification_device
+            data:
+              message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout }} Minuten offen."
+              title: "Fenster offen"
+
+      # --- AKTION FÜR FENSTER-INTERAKTION (ÖFFNEN/KIPPEN/SCHLIESSEN) ---
+      - conditions:
+          - condition: trigger
+            id: window_change
+        sequence:
+          # Finde das passende Rollladen/Sensor-Paar zum ausgelösten Sensor
+          - variables:
+              pair: "{{ window_sensors | selectattr('sensor', 'eq', trigger.entity_id) | first }}"
+              shutter: "{{ pair.shutter }}"
+              
+          # Speichere den Zustand des Rollladens, BEVOR wir ihn verändern.
+          - scene.create:
+              scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
+              entities:
+                "{{ shutter }}": "{{ states(shutter) }}"
+
+          - choose:
+              # Fenster wurde gekippt
+              - conditions:
+                  - "{{ trigger.to_state.state == 'tilted' }}"
+                sequence:
+                  - service: cover.set_cover_position
+                    data:
+                      position: 20
+                    target:
+                      entity_id: "{{ shutter }}"
+              # Fenster wurde geöffnet
+              - conditions:
+                  - "{{ trigger.to_state.state in ['on', 'open'] }}"
+                sequence:
+                  - service: cover.open_cover
+                    target:
+                      entity_id: "{{ shutter }}"
+
+          # Warte darauf, dass das Fenster wieder geschlossen wird (mit Timeout)
+          - wait_for_trigger:
+              - platform: state
+                entity_id: "{{ pair.sensor }}"
+                to: 
+                  - 'off'
+                  - 'closed'
+            timeout:
+              minutes: "{{ reclose_timeout_seconds }}"
+            continue_on_timeout: true # Wichtig: Automatisierung nach Timeout fortsetzen
+            
+          # Prüfen, ob der Wait erfolgreich war (d.h. Fenster wurde geschlossen)
+          - if: "{{ wait.trigger }}"
+            then:
+              # Wenn ja, stelle die zuvor gespeicherte Szene wieder her.
+              - service: scene.turn_on
+                target:
+                  entity_id: "{{ 'scene.reclose_' ~ shutter | slugify }}"
