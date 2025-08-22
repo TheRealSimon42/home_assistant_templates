@@ -89,31 +89,23 @@ blueprint:
         entity:
           domain: input_boolean
           
-# Modus "parallel", damit die Automatisierung für mehrere Fenster gleichzeitig laufen kann,
-# besonders wichtig für die "wait_for_trigger" Funktion beim Schließen.
 mode: parallel
-max: 15 # Erlaube bis zu 15 gleichzeitige Ausführungen (z.B. für 15 Fenster)
+max: 15
 
-# Variablen, die die Konfiguration auslesen und für die Automatisierung aufbereiten
 variables:
-  # Extrahiert alle Fenstersensoren aus der YAML-Konfiguration für die Trigger
   window_sensors: !input shutter_sensor_pairs
   reclose_timeout_seconds: !input reclose_timeout
   
-# Wir brauchen mehrere Trigger für die verschiedenen Funktionen
 trigger:
-  # 1. Trigger: Morgens zur festgelegten Zeit
   - platform: time
     at: !input morning_time
     id: morning_open
     
-  # 2. Trigger: Wenn einer der Fenstersensoren seinen Zustand ändert
   - platform: state
     entity_id: >
       {{ window_sensors | map(attribute='sensor') | list }}
     id: window_change
     
-  # 3. Trigger: Wenn ein Fenster zu lange offen ist
   - platform: state
     entity_id: >
       {{ window_sensors | map(attribute='sensor') | list }}
@@ -125,7 +117,6 @@ trigger:
       minutes: !input notification_timeout
     id: window_open_long
 
-  # 4. Trigger: Wenn der Nachtmodus aktiviert wird
   - platform: state
     entity_id: !input night_mode_boolean
     to: 'on'
@@ -133,7 +124,6 @@ trigger:
 
 action:
   - choose:
-      # --- AKTION FÜR MORGENDLICHES ÖFFNEN ---
       - conditions:
           - condition: trigger
             id: morning_open
@@ -141,7 +131,6 @@ action:
           - service: cover.open_cover
             target: !input morning_shutters
             
-      # --- AKTION FÜR NACHTSCHLIESSUNG ---
       - conditions:
           - condition: trigger
             id: night_close
@@ -153,7 +142,6 @@ action:
                     shutter: "{{ repeat.item.shutter }}"
                     sensor: "{{ repeat.item.sensor }}"
                 - choose:
-                    # Wenn Fenster offen/gekippt, nur auf 15% schließen
                     - conditions:
                         - "{{ states(sensor) in ['on', 'open', 'tilted'] }}"
                       sequence:
@@ -162,20 +150,16 @@ action:
                             entity_id: "{{ shutter }}"
                           data:
                             position: 15
-                  # Ansonsten komplett schließen
                   default:
                     - service: cover.close_cover
                       target:
                         entity_id: "{{ shutter }}"
                         
-      # --- AKTION FÜR FENSTER-BENACHRICHTIGUNG ---
       - conditions:
           - condition: trigger
             id: window_open_long
-          # Nur ausführen, wenn der Schlafmodus-Helfer nicht existiert oder 'off' ist
           - >
-            {{ iif(is_state('input_boolean.dummy', 'off'), true, 
-               not is_state(sleep_mode_boolean, 'on')) if sleep_mode_boolean else true }}
+            {{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}
         sequence:
           - service: notify.notify
             target: !input notification_device
@@ -183,24 +167,20 @@ action:
               message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout }} Minuten offen."
               title: "Fenster offen"
 
-      # --- AKTION FÜR FENSTER-INTERAKTION (ÖFFNEN/KIPPEN/SCHLIESSEN) ---
       - conditions:
           - condition: trigger
             id: window_change
         sequence:
-          # Finde das passende Rollladen/Sensor-Paar zum ausgelösten Sensor
           - variables:
               pair: "{{ window_sensors | selectattr('sensor', 'eq', trigger.entity_id) | first }}"
               shutter: "{{ pair.shutter }}"
               
-          # Speichere den Zustand des Rollladens, BEVOR wir ihn verändern.
           - scene.create:
               scene_id: "{{ 'reclose_' ~ shutter | slugify }}"
               entities:
                 "{{ shutter }}": "{{ states(shutter) }}"
 
           - choose:
-              # Fenster wurde gekippt
               - conditions:
                   - "{{ trigger.to_state.state == 'tilted' }}"
                 sequence:
@@ -209,7 +189,7 @@ action:
                       position: 20
                     target:
                       entity_id: "{{ shutter }}"
-              # Fenster wurde geöffnet
+
               - conditions:
                   - "{{ trigger.to_state.state in ['on', 'open'] }}"
                 sequence:
@@ -217,7 +197,6 @@ action:
                     target:
                       entity_id: "{{ shutter }}"
 
-          # Warte darauf, dass das Fenster wieder geschlossen wird (mit Timeout)
           - wait_for_trigger:
               - platform: state
                 entity_id: "{{ pair.sensor }}"
@@ -226,12 +205,10 @@ action:
                   - 'closed'
             timeout:
               minutes: "{{ reclose_timeout_seconds }}"
-            continue_on_timeout: true # Wichtig: Automatisierung nach Timeout fortsetzen
+            continue_on_timeout: true
             
-          # Prüfen, ob der Wait erfolgreich war (d.h. Fenster wurde geschlossen)
           - if: "{{ wait.trigger }}"
             then:
-              # Wenn ja, stelle die zuvor gespeicherte Szene wieder her.
               - service: scene.turn_on
                 target:
                   entity_id: "{{ 'scene.reclose_' ~ shutter | slugify }}"
