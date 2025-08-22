@@ -5,6 +5,8 @@ Please see this blog Post for further Explaination and Examples: https://www.sim
 ## Automation Blueprints
 ### Convert Datetime to Time helper
 [![Open your Home Assistant instance and import this blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/TheRealSimon42/home_assistant_templates/main/blueprint_automations/convert_datetime_helper_to_time_helper.yaml)
+### Cover Automation
+[![Open your Home Assistant instance and import this blueprint.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/TheRealSimon42/home_assistant_templates/main/blueprint_automations/cover_automation.yaml)
 
 ## Template Blueprints
 ### Angeschaltete Lichter
