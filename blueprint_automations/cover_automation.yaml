@@ -1,124 +1,147 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version Sections)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
-    
-    Funktionen:
-    - Fährt ausgewählte Rollläden morgens auf eine einstellbare Position hoch.
-    - Reagiert auf das Kippen ('tilted') oder Öffnen ('open') von zugeordneten Fenstern.
-    - Schließt einen Rollladen automatisch wieder, wenn das Fenster innerhalb einer bestimmten Zeit geschlossen wird.
-    - Sendet eine Benachrichtigung, wenn ein Fenster zu lange offen steht.
-    - Fährt die Rollläden nachts herunter, berücksichtigt dabei aber offene/gekippte Fenster.
   domain: automation
   source_url: https://raw.githubusercontent.com/TheRealSimon42/home_assistant_templates/main/blueprint_automations/cover_automation.yaml
   
   input:
-    # --- MORGENS HOCHFAHREN ---
-    morning_time:
-      name: Uhrzeit für morgendliches Hochfahren
-      description: Ein `input_datetime`-Helfer, der die Uhrzeit für das Hochfahren der Rollläden am Morgen festlegt.
-      selector:
-        entity:
-          domain: input_datetime
-          
-    morning_shutters:
-      name: Rollläden für morgens
-      description: Die Rollläden, die morgens hochgefahren werden sollen. Mehrfachauswahl ist möglich.
-      selector:
-        target:
-          entity:
-            domain: cover
-            device_class: shutter
+    # --- SEKTION 1: ZUORDNUNG ---
+    assignment_section:
+      name: 1. Zuordnung
+      description: 'Ordne hier jedem Rollladen einen Fenstersensor zu. Die Reihenfolge in beiden Listen muss identisch sein!'
+      icon: mdi:vector-link
+      input:
+        shutters:
+          name: Rollläden
+          description: 'Wähle alle zu steuernden Rollläden aus. Die Reihenfolge ist entscheidend!'
+          selector:
+            entity:
+              multiple: true
+              domain: cover
+              device_class: shutter
 
-    morning_position:
-      name: Zielposition für morgens
-      description: 'Die Position (in %), auf die die Rollläden morgens fahren sollen. Die Aktion wird nur ausgeführt, wenn ein Rollladen geschlossener ist als diese Position.'
-      default: 100
-      selector:
-        number:
-          min: 0
-          max: 100
-          step: 1
-          mode: slider
-          unit_of_measurement: "%"
+        window_sensors:
+          name: Zugehörige Fenstersensoren
+          description: 'Wähle die passenden Fenstersensoren in der exakt gleichen Reihenfolge wie die Rollläden oben aus. Der erste Sensor hier wird dem ersten Rollladen oben zugeordnet, usw.'
+          selector:
+            entity:
+              multiple: true
+              domain:
+                - binary_sensor
+                - sensor
 
-    # --- FENSTER-INTERAKTION (UI-LISTEN) ---
-    shutters:
-      name: Rollläden
-      description: 'Wähle alle zu steuernden Rollläden aus. Die Reihenfolge ist entscheidend!'
-      selector:
-        entity:
-          multiple: true
-          domain: cover
-          device_class: shutter
+    # --- SEKTION 2: MORGENS ÖFFNEN ---
+    morning_section:
+      name: 2. Morgens Öffnen
+      description: Einstellungen für das automatische Öffnen der Rollläden am Morgen.
+      icon: mdi:weather-sunset-up
+      collapsed: true
+      input:
+        morning_time:
+          name: Uhrzeit für morgendliches Hochfahren
+          description: Ein `input_datetime`-Helfer, der die Uhrzeit für das Hochfahren der Rollläden am Morgen festlegt.
+          selector:
+            entity:
+              domain: input_datetime
+              
+        morning_shutters:
+          name: Rollläden für morgens
+          description: Die Rollläden, die morgens hochgefahren werden sollen. Mehrfachauswahl ist möglich.
+          selector:
+            target:
+              entity:
+                domain: cover
+                device_class: shutter
 
-    window_sensors:
-      name: Zugehörige Fenstersensoren
-      description: 'Wähle die passenden Fenstersensoren in der exakt gleichen Reihenfolge wie die Rollläden oben aus. Der erste Sensor hier wird dem ersten Rollladen oben zugeordnet, usw.'
-      selector:
-        entity:
-          multiple: true
-          domain:
-            - binary_sensor
-            - sensor
+        morning_position:
+          name: Zielposition für morgens
+          description: 'Die Position (in %), auf die die Rollläden morgens fahren sollen. Die Aktion wird nur ausgeführt, wenn ein Rollladen geschlossener ist als diese Position.'
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              mode: slider
+              unit_of_measurement: "%"
+
+    # --- SEKTION 3: FENSTER-INTERAKTION ---
+    window_interaction_section:
+      name: 3. Fenster-Interaktion
+      description: Definiert, wie Rollläden auf geöffnete oder gekippte Fenster reagieren.
+      icon: mdi:window-open-variant
+      collapsed: true
+      input:
+        tilted_position:
+          name: Zielposition für gekippte Fenster
+          description: 'Die Position (in %), auf die ein Rollladen fährt, wenn das Fenster gekippt wird. Die Aktion wird nur ausgeführt, wenn der Rollladen geschlossener ist als diese Position.'
+          default: 20
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              mode: slider
+              unit_of_measurement: "%"
             
-    tilted_position:
-      name: Zielposition für gekippte Fenster
-      description: 'Die Position (in %), auf die ein Rollladen fährt, wenn das Fenster gekippt wird. Die Aktion wird nur ausgeführt, wenn der Rollladen geschlossener ist als diese Position.'
-      default: 20
-      selector:
-        number:
-          min: 0
-          max: 100
-          step: 1
-          mode: slider
-          unit_of_measurement: "%"
-        
-    reclose_timeout:
-      name: Zeitfenster für automatisches Schließen
-      description: Wenn ein Fenster innerhalb dieser Zeit (in Minuten) wieder geschlossen wird, fährt der Rollladen in seine Ausgangsposition zurück.
-      default: 30
-      selector:
-        number:
-          min: 1
-          max: 120
-          unit_of_measurement: Minuten
+        reclose_timeout:
+          name: Zeitfenster für automatisches Schließen
+          description: Wenn ein Fenster innerhalb dieser Zeit (in Minuten) wieder geschlossen wird, fährt der Rollladen in seine Ausgangsposition zurück.
+          default: 30
+          selector:
+            number:
+              min: 1
+              max: 120
+              unit_of_measurement: Minuten
 
-    # --- NACHTS SCHLIESSEN ---
-    night_mode_boolean:
-      name: Nachtmodus Helfer
-      description: Ein `input_boolean`-Helfer. Wenn dieser auf 'on' geschaltet wird, werden die Rollläden für die Nacht geschlossen.
-      selector:
-        entity:
-          domain: input_boolean
-          
-    # --- BENACHRICHTIGUNG ---
-    notification_timeout:
-      name: Benachrichtigung nach X Minuten
-      description: Sendet eine Nachricht, wenn ein Fenster länger als diese Zeit offen ist.
-      default: 45
-      selector:
-        number:
-          min: 5
-          max: 240
-          unit_of_measurement: Minuten
-          
-    notification_device:
-      name: Benachrichtigungs-Gerät
-      description: Das Gerät oder der Dienst, der die Benachrichtigung erhalten soll (z.B. `notify.mobile_app_dein_handy`).
-      selector:
-        target:
-          entity:
-            domain: notify
+    # --- SEKTION 4: NACHTMODUS ---
+    night_mode_section:
+      name: 4. Nachtmodus
+      description: Einstellungen für das Schließen der Rollläden bei Nacht.
+      icon: mdi:weather-night
+      collapsed: true
+      input:
+        night_mode_boolean:
+          name: Nachtmodus Helfer
+          description: Ein `input_boolean`-Helfer. Wenn dieser auf 'on' geschaltet wird, werden die Rollläden für die Nacht geschlossen.
+          selector:
+            entity:
+              domain: input_boolean
 
-    sleep_mode_boolean:
-      name: Schlafmodus Helfer (optional)
-      description: Optional. Wenn dieser `input_boolean` 'on' ist, werden keine Benachrichtigungen über offene Fenster gesendet.
-      default: {}
-      selector:
-        entity:
-          domain: input_boolean
+    # --- SEKTION 5: BENACHRICHTIGUNGEN ---
+    notification_section:
+      name: 5. Benachrichtigungen
+      description: Einstellungen für Benachrichtigungen bei zu lange offenen Fenstern.
+      icon: mdi:bell
+      collapsed: true
+      input:
+        notification_timeout:
+          name: Benachrichtigung nach X Minuten
+          description: Sendet eine Nachricht, wenn ein Fenster länger als diese Zeit offen ist.
+          default: 45
+          selector:
+            number:
+              min: 5
+              max: 240
+              unit_of_measurement: Minuten
+              
+        notification_device:
+          name: Benachrichtigungs-Gerät
+          description: Das Gerät oder der Dienst, der die Benachrichtigung erhalten soll (z.B. `notify.mobile_app_dein_handy`).
+          selector:
+            target:
+              entity:
+                domain: notify
+
+        sleep_mode_boolean:
+          name: Schlafmodus Helfer (optional)
+          description: Optional. Wenn dieser `input_boolean` 'on' ist, werden keine Benachrichtigungen über offene Fenster gesendet.
+          default: {}
+          selector:
+            entity:
+              domain: input_boolean
           
 mode: parallel
 max: 15
