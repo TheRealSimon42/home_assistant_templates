@@ -1,7 +1,7 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version 2.0 BF)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version)
   description: >
-    Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
+    Steuert Rollläden basierend auf Zeit, Fensterkontakten, Anwesenheitsmodi und Sturmwarnungen.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
   domain: automation
   source_url: https://raw.githubusercontent.com/TheRealSimon42/home_assistant_templates/main/blueprint_automations/cover_automation.yaml
@@ -65,7 +65,7 @@ blueprint:
               max: 100
               step: 1
               mode: slider
-              unit_of_measurement: "%"
+              unit_ of_measurement: "%"
 
     # --- SEKTION 3: FENSTER-INTERAKTION ---
     window_interaction_section:
@@ -98,12 +98,53 @@ blueprint:
 
         force_close:
           name: Schließen erzwingen
-          description: 'Wenn aktiviert, wird der Rollladen nach Ablauf des Zeitfensters immer geschlossen, auch wenn das Fenster noch offen ist.'
+          description: 'Wenn aktiviert, wird der Rollladen nach Ablauf des Zeitfensters immer geschlossen, auch wenn das Fenster noch offen ist. ⚠️ Achtung: Dies kann dazu führen, dass du dich selbst aussperrst!'
           default: false
           selector:
             boolean:
 
-    # --- SEKTION 4: NACHTMODUS ---
+    # --- SEKTION 4: STURMSCHUTZ ---
+    storm_protection_section:
+      name: Sturmschutz
+      description: Fährt die Rollläden bei starkem Wind automatisch hoch (oder im Panzer-Modus herunter).
+      icon: mdi:weather-windy
+      collapsed: true
+      input:
+        weather_entity:
+          name: Wetter-Entität
+          description: 'Wähle deine Wetter-Entität (z.B. von DWD oder die Standard-Integration). Standard: forecast.home'
+          default: weather.forecast_home
+          selector:
+            entity:
+              domain: weather
+
+        wind_speed_threshold:
+          name: Windgeschwindigkeit-Grenzwert (km/h)
+          description: 'Ab dieser Windgeschwindigkeit wird der Sturmschutz ausgelöst. Ein Wert von ca. 55 km/h wird empfohlen.'
+          default: 55
+          selector:
+            number:
+              min: 30
+              max: 120
+              step: 1
+              mode: slider
+              unit_of_measurement: "km/h"
+              
+        panzer_mode:
+          name: Panzer-Modus
+          description: 'Wenn aktiviert, werden die Rollläden bei Sturm geschlossen anstatt geöffnet.'
+          default: false
+          selector:
+            boolean:
+            
+        force_storm_action:
+          name: Aktion bei Sturm erzwingen
+          description: 'Wenn aktiviert, werden die Rollläden bei Sturm auch dann bewegt, wenn die zugehörigen Fenster offen sind. ⚠️ Achtung: Dies kann dazu führen, dass du dich selbst aussperrst!'
+          default: false
+          selector:
+            boolean:
+
+    # --- SEKTION 5: NACHTMODUS ---
     night_mode_section:
       name: Nachtmodus
       description: Einstellungen für das Schließen der Rollläden bei Nacht.
@@ -117,7 +158,7 @@ blueprint:
             entity:
               domain: input_boolean
 
-    # --- SEKTION 5: BENACHRICHTIGUNGEN ---
+    # --- SEKTION 6: BENACHRICHTIGUNGEN ---
     notification_section:
       name: Benachrichtigungen
       description: Einstellungen für Benachrichtigungen bei zu lange offenen Fenstern.
@@ -170,6 +211,9 @@ variables:
   sensors_list: !input window_sensors
   tilted_position: !input tilted_position
   force_close: !input force_close
+  force_storm_action: !input force_storm_action
+  panzer_mode: !input panzer_mode
+  weather_entity: !input weather_entity
   
 trigger:
   - platform: time
@@ -206,6 +250,12 @@ trigger:
     entity_id: !input night_mode_boolean
     to: 'on'
     id: night_close
+    
+  - platform: numeric_state
+    entity_id: !input weather_entity
+    attribute: wind_speed
+    above: !input wind_speed_threshold
+    id: storm_detected
 
 action:
   - choose:
@@ -256,6 +306,34 @@ action:
                       target:
                         entity_id: "{{ shutter }}"
                         
+      - conditions:
+          - condition: trigger
+            id: storm_detected
+        sequence:
+          - repeat:
+              for_each: !input shutters
+              sequence:
+                - variables:
+                    shutter: "{{ repeat.item }}"
+                    sensor: "{{ sensors_list[repeat.index] }}"
+                - condition: or
+                  conditions:
+                    - condition: template
+                      value_template: "{{ force_storm_action }}"
+                    - condition: template
+                      value_template: "{{ states(sensor) in ['off', 'closed'] }}"
+                - choose:
+                    - conditions:
+                        - "{{ not panzer_mode }}"
+                      sequence:
+                        - service: cover.open_cover
+                          target:
+                            entity_id: "{{ shutter }}"
+                  default:
+                    - service: cover.close_cover
+                      target:
+                        entity_id: "{{ shutter }}"
+
       - conditions:
           - condition: trigger
             id: window_open_long
