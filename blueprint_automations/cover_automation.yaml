@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version BF Wait)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten, Anwesenheitsmodi und Sturmwarnungen.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -398,7 +398,7 @@ action:
               minutes: "{{ reclose_timeout_seconds }}"
             continue_on_timeout: true
             
-          - if: 
+          - if:
               - "{{ wait.completed }}"
             then:
               - service: scene.turn_on
