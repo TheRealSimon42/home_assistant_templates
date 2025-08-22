@@ -1,8 +1,3 @@
-Hallo\! Na klar, das sind alles exzellente Verbesserungen, die den Blueprint noch praxistauglicher machen. Ich habe alle vier Punkte für dich umgesetzt.
-
-Hier ist der neue, voll funktionsfähige Code für deinen Blueprint.
-
-```yaml
 blueprint:
   name: s42 - Intelligente Rollladensteuerung (UI-Version 2.0)
   description: >
@@ -336,4 +331,3 @@ action:
                   - service: cover.close_cover
                     target:
                       entity_id: "{{ shutter }}"
-```
