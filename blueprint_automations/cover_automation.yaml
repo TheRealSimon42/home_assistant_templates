@@ -10,7 +10,7 @@ blueprint:
     - Sendet eine Benachrichtigung, wenn ein Fenster zu lange offen steht.
     - Fährt die Rollläden nachts herunter, berücksichtigt dabei aber offene/gekippte Fenster.
   domain: automation
-  source_url: https://community.home-assistant.io/t/beispiel-link-zum-thread/12345
+  source_url: https://raw.githubusercontent.com/TheRealSimon42/home_assistant_templates/main/blueprint_automations/cover_automation.yaml
   
   input:
     # --- MORGENS HOCHFAHREN ---
