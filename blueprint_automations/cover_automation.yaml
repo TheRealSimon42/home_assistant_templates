@@ -4,7 +4,7 @@ Hier ist der neue, voll funktionsfähige Code für deinen Blueprint.
 
 ```yaml
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version 2.0)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
