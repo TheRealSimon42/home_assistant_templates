@@ -1,5 +1,10 @@
+Hallo\! Na klar, das sind alles exzellente Verbesserungen, die den Blueprint noch praxistauglicher machen. Ich habe alle vier Punkte für dich umgesetzt.
+
+Hier ist der neue, voll funktionsfähige Code für deinen Blueprint.
+
+```yaml
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version Scene Fix)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten und Anwesenheitsmodi.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -88,13 +93,20 @@ blueprint:
             
         reclose_timeout:
           name: Zeitfenster für automatisches Schließen
-          description: Wenn ein Fenster innerhalb dieser Zeit (in Minuten) wieder geschlossen wird, fährt der Rollladen in seine Ausgangsposition zurück.
+          description: 'Wenn ein geöffnetes/gekipptes Fenster innerhalb dieser Zeit (in Minuten) wieder geschlossen wird, fährt der Rollladen in seine Ausgangsposition zurück.'
           default: 30
           selector:
             number:
               min: 1
               max: 120
               unit_of_measurement: Minuten
+
+        force_close:
+          name: Schließen erzwingen
+          description: 'Wenn aktiviert, wird der Rollladen nach Ablauf des Zeitfensters immer geschlossen, auch wenn das Fenster noch offen ist.'
+          default: false
+          selector:
+            boolean:
 
     # --- SEKTION 4: NACHTMODUS ---
     night_mode_section:
@@ -118,13 +130,23 @@ blueprint:
       collapsed: true
       input:
         notification_timeout:
-          name: Benachrichtigung nach X Minuten
-          description: Sendet eine Nachricht, wenn ein Fenster länger als diese Zeit offen ist.
+          name: Benachrichtigung nach X Min. (Fenster offen)
+          description: Sendet eine Nachricht, wenn ein Fenster länger als diese Zeit komplett offen ist.
           default: 45
           selector:
             number:
               min: 5
               max: 240
+              unit_of_measurement: Minuten
+
+        notification_timeout_tilted:
+          name: Benachrichtigung nach X Min. (Fenster gekippt)
+          description: Sendet eine Nachricht, wenn ein Fenster länger als diese Zeit nur gekippt ist.
+          default: 60
+          selector:
+            number:
+              min: 5
+              max: 480
               unit_of_measurement: Minuten
               
         notification_device:
@@ -152,6 +174,7 @@ variables:
   shutters_list: !input shutters
   sensors_list: !input window_sensors
   tilted_position: !input tilted_position
+  force_close: !input force_close
   
 trigger:
   - platform: time
@@ -173,10 +196,16 @@ trigger:
     to:
       - 'on'
       - 'open'
-      - 'tilted'
     for:
       minutes: !input notification_timeout
     id: window_open_long
+    
+  - platform: state
+    entity_id: !input window_sensors
+    to: 'tilted'
+    for:
+      minutes: !input notification_timeout_tilted
+    id: window_tilted_long
 
   - platform: state
     entity_id: !input night_mode_boolean
@@ -212,7 +241,15 @@ action:
                     sensor: "{{ sensors_list[repeat.index] }}"
                 - choose:
                     - conditions:
-                        - "{{ states(sensor) in ['on', 'open', 'tilted'] }}"
+                        - "{{ states(sensor) == 'tilted' }}"
+                      sequence:
+                        - service: cover.set_cover_position
+                          target:
+                            entity_id: "{{ shutter }}"
+                          data:
+                            position: !input tilted_position
+                    - conditions:
+                        - "{{ states(sensor) in ['on', 'open'] }}"
                       sequence:
                         - service: cover.set_cover_position
                           target:
@@ -227,8 +264,7 @@ action:
       - conditions:
           - condition: trigger
             id: window_open_long
-          - >
-            {{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}
+          - "{{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}"
         sequence:
           - service: notify.notify
             target:
@@ -236,6 +272,18 @@ action:
             data:
               message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout }} Minuten offen."
               title: "Fenster offen"
+              
+      - conditions:
+          - condition: trigger
+            id: window_tilted_long
+          - "{{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}"
+        sequence:
+          - service: notify.notify
+            target:
+              device_id: !input notification_device
+            data:
+              message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout_tilted }} Minuten gekippt."
+              title: "Fenster gekippt"
 
       - conditions:
           - condition: trigger
@@ -281,4 +329,11 @@ action:
             then:
               - service: scene.turn_on
                 target:
-                  entity_id: "{{ 'scene.reclose_' ~ shutter | slugify }}"
+                  entity_id: "{{ 'reclose_' ~ shutter | slugify }}"
+            else:
+              - if: "{{ force_close }}"
+                then:
+                  - service: cover.close_cover
+                    target:
+                      entity_id: "{{ shutter }}"
+```
