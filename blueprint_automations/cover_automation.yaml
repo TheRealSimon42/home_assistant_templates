@@ -56,7 +56,7 @@ blueprint:
 
     # --- NACHTS SCHLIESSEN ---
     night_mode_boolean:
-      name: "Nachtmodus" Helfer
+      name: Nachtmodus Helfer
       description: Ein `input_boolean`-Helfer. Wenn dieser auf 'on' geschaltet wird, werden die Rollläden für die Nacht geschlossen.
       selector:
         entity:
@@ -82,7 +82,7 @@ blueprint:
             domain: notify
 
     sleep_mode_boolean:
-      name: "Schlafmodus" Helfer (optional)
+      name: Schlafmodus Helfer (optional)
       description: Optional. Wenn dieser `input_boolean` 'on' ist, werden keine Benachrichtigungen über offene Fenster gesendet.
       default: {}
       selector:
