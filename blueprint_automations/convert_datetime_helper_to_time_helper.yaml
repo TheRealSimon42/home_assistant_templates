@@ -1,5 +1,5 @@
 blueprint:
-  name: Synchronisiere Uhrzeit von Datum+Uhrzeit Helfer zu Uhrzeit-Helfer
+  name: s42 - Synchronisiere Uhrzeit von Datum+Uhrzeit Helfer zu Uhrzeit-Helfer
   description: >-
     Diese Blueprint erstellt eine Automation, die auf die Änderung eines 'input_datetime'-Helfers (mit Datum und Uhrzeit) lauscht.
     Sie extrahiert dann nur die Uhrzeit und speichert sie in einem zweiten 'input_datetime'-Helfer, der nur die Uhrzeit speichert.
