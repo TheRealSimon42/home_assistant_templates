@@ -5,7 +5,7 @@ blueprint:
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
     
     Funktionen:
-    - Fährt ausgewählte Rollläden morgens zu einer bestimmten Zeit hoch.
+    - Fährt ausgewählte Rollläden morgens auf eine einstellbare Position hoch.
     - Reagiert auf das Kippen ('tilted') oder Öffnen ('open') von zugeordneten Fenstern.
     - Schließt einen Rollladen automatisch wieder, wenn das Fenster innerhalb einer bestimmten Zeit geschlossen wird.
     - Sendet eine Benachrichtigung, wenn ein Fenster zu lange offen steht.
@@ -30,6 +30,18 @@ blueprint:
           entity:
             domain: cover
             device_class: shutter
+
+    morning_position:
+      name: Zielposition für morgens
+      description: 'Die Position (in %), auf die die Rollläden morgens fahren sollen. Die Aktion wird nur ausgeführt, wenn ein Rollladen geschlossener ist als diese Position.'
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: slider
+          unit_of_measurement: "%"
 
     # --- FENSTER-INTERAKTION (UI-LISTEN) ---
     shutters:
@@ -134,8 +146,16 @@ action:
           - condition: trigger
             id: morning_open
         sequence:
-          - service: cover.open_cover
-            target: !input morning_shutters
+          - repeat:
+              for_each: "{{ expand(inputs.morning_shutters) | map(attribute='entity_id') | list }}"
+              sequence:
+                - condition: template
+                  value_template: "{{ state_attr(repeat.item, 'current_position') | int(101) < inputs.morning_position }}"
+                - service: cover.set_cover_position
+                  target:
+                    entity_id: "{{ repeat.item }}"
+                  data:
+                    position: !input morning_position
             
       - conditions:
           - condition: trigger
@@ -218,4 +238,4 @@ action:
             then:
               - service: scene.turn_on
                 target:
-                  entity_id: "{{ 'scene.reclose_' ~ shutter | slugify }}"
+                  entity_id: "{{ 'reclose_' ~ shutter | slugify }}"
