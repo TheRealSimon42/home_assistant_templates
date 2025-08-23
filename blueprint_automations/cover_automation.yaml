@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version Notify Fix2)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten, Anwesenheitsmodi und Sturmwarnungen.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -194,6 +194,13 @@ blueprint:
               filter:
                 integration: mobile_app
 
+        use_area_name:
+          name: Bereichsnamen in Benachrichtigungen verwenden
+          description: 'Wenn aktiviert, wird der Bereichsname (z.B. "Wohnzimmer") anstelle des langen Sensor-Namens verwendet.'
+          default: false
+          selector:
+            boolean:
+
         sleep_mode_boolean:
           name: Schlafmodus Helfer (optional)
           description: Optional. Wenn dieser `input_boolean` 'on' ist, werden keine Benachrichtigungen über offene Fenster gesendet.
@@ -215,6 +222,7 @@ variables:
   panzer_mode: !input panzer_mode
   weather_entity: !input weather_entity
   notification_device: !input notification_device
+  use_area_name: !input use_area_name
   device_name_map: >
     {% set ns = namespace(device_names=[]) %}
     {% for device_id in notification_device %}
@@ -265,6 +273,10 @@ trigger:
     attribute: wind_speed
     above: !input wind_speed_threshold
     id: storm_detected
+
+  - platform: event
+    event_type: mobile_app_notification_action
+    id: close_shutter_action
 
 action:
   - choose:
@@ -348,26 +360,76 @@ action:
             id: window_open_long
           - "{{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}"
         sequence:
+          - variables:
+              action_identifier: "{{ 'CLOSE_SHUTTER__' ~ trigger.entity_id }}"
+              title_text: >-
+                {% if use_area_name and area_name(trigger.entity_id) %}
+                  Fenster offen in {{ area_name(trigger.entity_id) }}
+                {% else %}
+                  Fenster offen
+                {% endif %}
+              message_text: >-
+                {% if use_area_name and area_name(trigger.entity_id) %}
+                  Das Fenster im Bereich '{{ area_name(trigger.entity_id) }}' ist seit über {{ notification_timeout }} Minuten offen.
+                {% else %}
+                  Fenster '{{ state_attr(trigger.entity_id, "friendly_name") }}' ist seit über {{ notification_timeout }} Minuten offen.
+                {% endif %}
           - repeat:
               for_each: "{{ device_name_map }}"
               sequence:
                 - service: "notify.{{ repeat.item }}"
                   data:
-                    message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout }} Minuten offen."
-                    title: "Fenster offen"
+                    message: "{{ message_text }}"
+                    title: "{{ title_text }}"
+                    data:
+                      actions:
+                        - action: "{{ action_identifier }}"
+                          title: "Rollladen schließen"
               
       - conditions:
           - condition: trigger
             id: window_tilted_long
           - "{{ not is_state(sleep_mode_boolean, 'on') if sleep_mode_boolean else true }}"
         sequence:
+          - variables:
+              action_identifier: "{{ 'CLOSE_SHUTTER__' ~ trigger.entity_id }}"
+              title_text: >-
+                {% if use_area_name and area_name(trigger.entity_id) %}
+                  Fenster gekippt in {{ area_name(trigger.entity_id) }}
+                {% else %}
+                  Fenster gekippt
+                {% endif %}
+              message_text: >-
+                {% if use_area_name and area_name(trigger.entity_id) %}
+                  Das Fenster im Bereich '{{ area_name(trigger.entity_id) }}' ist seit über {{ notification_timeout_tilted }} Minuten gekippt.
+                {% else %}
+                  Fenster '{{ state_attr(trigger.entity_id, "friendly_name") }}' ist seit über {{ notification_timeout_tilted }} Minuten gekippt.
+                {% endif %}
           - repeat:
               for_each: "{{ device_name_map }}"
               sequence:
                 - service: "notify.{{ repeat.item }}"
                   data:
-                    message: "Fenster '{{ state_attr(trigger.entity_id, 'friendly_name') }}' ist seit über {{ notification_timeout_tilted }} Minuten gekippt."
-                    title: "Fenster gekippt"
+                    message: "{{ message_text }}"
+                    title: "{{ title_text }}"
+                    data:
+                      actions:
+                        - action: "{{ action_identifier }}"
+                          title: "Rollladen schließen"
+      
+      - conditions:
+          - condition: trigger
+            id: close_shutter_action
+          - "{{ trigger.event.data.action.startswith('CLOSE_SHUTTER__') }}"
+        sequence:
+          - variables:
+              action_name: "{{ trigger.event.data.action }}"
+              sensor_id: "{{ action_name.split('__')[1] }}"
+              sensor_index: "{{ sensors_list.index(sensor_id) }}"
+              shutter_to_close: "{{ shutters_list[sensor_index] }}"
+          - service: cover.close_cover
+            target:
+              entity_id: "{{ shutter_to_close }}"
 
       - conditions:
           - condition: trigger
