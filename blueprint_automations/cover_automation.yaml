@@ -1,5 +1,5 @@
 blueprint:
-  name: s42 - Intelligente Rollladensteuerung (UI-Version Actionable)
+  name: s42 - Intelligente Rollladensteuerung (UI-Version NFDF)
   description: >
     Steuert Rollläden basierend auf Zeit, Fensterkontakten, Anwesenheitsmodi und Sturmwarnungen.
     Die Zuordnung von Rollläden zu Sensoren erfolgt über zwei Listen in der UI, deren Reihenfolge übereinstimmen muss.
@@ -223,6 +223,8 @@ variables:
   weather_entity: !input weather_entity
   notification_device: !input notification_device
   use_area_name: !input use_area_name
+  notification_timeout: !input notification_timeout
+  notification_timeout_tilted: !input notification_timeout_tilted
   device_name_map: >
     {% set ns = namespace(device_names=[]) %}
     {% for device_id in notification_device %}
