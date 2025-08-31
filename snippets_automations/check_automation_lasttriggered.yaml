@@ -1,0 +1,5 @@
+alias: Automation ist noch nie oder vor mehr als 2 Tagen gelaufen
+condition: template
+value_template: >-
+  {{ this.attributes.last_triggered == none or 
+  (now() - this.attributes.last_triggered).total_seconds() > 172800 }}
