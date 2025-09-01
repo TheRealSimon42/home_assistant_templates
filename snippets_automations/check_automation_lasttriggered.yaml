@@ -1,5 +1,6 @@
-alias: Automation ist noch nie oder vor mehr als 2 Tagen gelaufen
 condition: template
 value_template: >-
-  {{ this.attributes.last_triggered == none or 
-  (now() - this.attributes.last_triggered).total_seconds() > 2*24*3600 }}
+  {{ state_attr(this.entity_id, 'last_triggered') == None or (
+  as_timestamp(now()) - as_timestamp(state_attr(this.entity_id,
+  'last_triggered')) |int(0) ) >= (18*3600) }}
+alias: Automation ist noch nie oder vor mehr als 18 Stunden gelaufen
